@@ -140,6 +140,7 @@ def my_convert_str_variable(data:pd.DataFrame, str_vaiable:str, rename_dict:dict
   data = deepcopy(data)
   if rename_dict is None:
       str_vaiable_names = np.unique(data[str_vaiable])
+      str_vaiable_names.sort()
       rename_dict = dict()
       i = 0
       for str_vaiable_name in str_vaiable_names:
@@ -225,6 +226,6 @@ def get_train_and_test_data(data_path:str, amount_of_days:int = 3, wind_border:i
     x_data_train, columns, dicts = convert_str_variable(x_data_train, amount_of_days)
     print('columns', columns)
     print('dicts', dicts)
-    x_data_test = convert_str_variable(x_data_test, amount_of_days, columns=columns, dicts=dicts)[0]
+    x_data_test = convert_str_variable(x_data_test, amount_of_days)[0]
   
   return ((x_data_train, y_data_wind_train, y_data_temperature_train), (x_data_test, y_data_wind_test, y_data_temperature_test))
