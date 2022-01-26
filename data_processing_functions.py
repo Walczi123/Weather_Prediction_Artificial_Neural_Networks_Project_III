@@ -140,11 +140,19 @@ def my_convert_str_variable(data:pd.DataFrame, str_vaiable:str, rename_dict:dict
   data = deepcopy(data)
   if rename_dict is None:
       str_vaiable_names = np.unique(data[str_vaiable])
+      str_vaiable_names.sort()
       rename_dict = dict()
       i = 0
       for str_vaiable_name in str_vaiable_names:
           rename_dict[str_vaiable_name] = i
           i += 1
+  else:
+    all_variable_names = np.unique(data[str_vaiable])
+    i = len(rename_dict)
+    missing_variable = [x for x in all_variable_names if x not in rename_dict]
+    for str_variable_name in missing_variable:
+      rename_dict[str_variable_name] = i
+      i+=1
 
   converted = []
   for d in data[str_vaiable]:
