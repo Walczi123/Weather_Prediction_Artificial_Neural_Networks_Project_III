@@ -5,7 +5,7 @@ from copy import deepcopy
 FILE_NAMES = ["humidity", "pressure", "temperature", "weather_description", "wind_direction", "wind_speed"]
 DAY_COLUMNS = ['weather_description_day', 'wind_speed_max_day', 'wind_speed_mean_day', 'wind_direction_day', 'temperature_day', 'humidity_day', 'pressure_day']
 
-def read_datas(data_path, remove_nulls = True, file_names:list = FILE_NAMES):
+def read_datas(data_path, remove_nulls:int = 1, file_names:list = FILE_NAMES):
   data_train = dict()
   data_test = dict()
 
@@ -13,9 +13,15 @@ def read_datas(data_path, remove_nulls = True, file_names:list = FILE_NAMES):
       data_train[file_name] = pd.read_csv(f'{data_path}/train/{file_name}_train.csv', header=0, sep=';') 
       data_test[file_name] = pd.read_csv(f'{data_path}/test/{file_name}_test.csv', header=0, sep=';') 
 
-  if remove_nulls:
+  if remove_nulls == 1:
       data_train = remove_null_values(data_train)
       data_test = remove_null_values(data_test)
+  elif remove_nulls == 2:
+      data_train = fill_null_values_with_means(data_train)
+      data_test = fill_null_values_with_means(data_test)
+  elif remove_nulls == 3:
+      data_train = fill_null_values(data_train)
+      data_test = fill_null_values(data_test)
 
   return data_train, data_test
 
@@ -32,7 +38,6 @@ def read_train_data(data_path, remove_nulls = True, file_names:list = FILE_NAMES
 
 def read_test_data(data_path, remove_nulls = True, file_names:list = FILE_NAMES):
   data_test = dict()
-
   for file_name in file_names:
     data_test[file_name] = pd.read_csv(f'{data_path}/test/{file_name}_test.csv', header=0, sep=';') 
 
@@ -45,6 +50,24 @@ def remove_null_values(data_dict):
   for i in data_dict:
     data_dict[i] = data_dict[i].dropna()
   return data_dict
+
+def fill_null_values(data_dict):
+  for i in data_dict:
+    data_dict[i] = data_dict[i].ffill()
+    data_dict[i] = data_dict[i].bfill()
+  return data_dict
+
+def fill_null_values_with_mean(df):
+    for date in np.unique(df["datetime"].str[:10]):
+        df_tmp = df[df["datetime"].str.startswith(date)]
+        df[df["datetime"].str.startswith(date)] = df_tmp.fillna(df_tmp.mean())
+    df = df.dropna()
+    return df
+
+def fill_null_values_with_means(data_dict):
+    for i in data_dict:
+        data_dict[i] = fill_null_values_with_mean(data_dict[i])
+    return data_dict
 
 def pivot_data(data_dict, file_names:list = FILE_NAMES):
   i = 0
@@ -212,17 +235,21 @@ def get_test_data(data_path:str, amount_of_days:int = 3, wind_border:int = 8, co
 
   return x_data_test, y_data_wind_test, y_data_temperature_test
 
-def get_train_and_test_data(data_path:str, amount_of_days:int = 3, wind_border:int = 8, convert_str_variable_flag:bool = True):
-  data_train, data_test= read_datas(data_path)
+def get_train_and_test_data(data_path:str, amount_of_days:int = 3, wind_border:int = 8, convert_str_variable_flag:bool = True, remove_nulls:int = 1):
+  data_train, data_test= read_datas(data_path, remove_nulls)
 
   data_train = pivot_data(data_train)
   data_train_agg = aggregate_by_day(data_train)
+  if remove_nulls == 2:
+    data_train_agg = data_train_agg.dropna()
   data_train_flattened = combine_days_series(data_train_agg, amount_of_days)
   data_train_cat = categorize_wind_data(data_train_flattened, wind_border)
   x_data_train, y_data_wind_train, y_data_temperature_train = separate_x_and_y(data_train_cat, wind_border)
 
   data_test = pivot_data(data_test)
   data_test_agg = aggregate_by_day(data_test)
+  if remove_nulls == 2:
+    data_test_agg = data_test_agg.dropna()
   data_test_flattened = combine_days_series(data_test_agg, amount_of_days)
   data_test_cat = categorize_wind_data(data_test_flattened, wind_border)
   x_data_test, y_data_wind_test, y_data_temperature_test = separate_x_and_y(data_test_cat, wind_border)
@@ -285,8 +312,8 @@ def aggregate_by_season(data):
     agregated_by_season[i] = data[data["season"] == i]
   return agregated_by_season
 
-def get_train_and_test_data_by_season(data_path:str, amount_of_days:int = 3, wind_border:int = 8, convert_str_variable_flag:bool = True):
-  data_train, data_test= read_datas(data_path)
+def get_train_and_test_data_by_season(data_path:str, amount_of_days:int = 3, wind_border:int = 8, convert_str_variable_flag:bool = True, remove_nulls:int = 1):
+  data_train, data_test= read_datas(data_path, remove_nulls)
   data_train = pivot_data(data_train)
   data_test = pivot_data(data_test)
   agregated_by_season_train = aggregate_by_season(data_train)
@@ -363,8 +390,8 @@ def separate_x_and_y_with_separate_day(data:pd.DataFrame, border:int = 8):
   y_temperature1 = data['y_temperature1']
   return x, y_wind1, y_temperature1, y_wind2, y_temperature2
 
-def get_train_and_test_data_with_separate_day(data_path:str, amount_of_days:int = 3, wind_border:int = 8, convert_str_variable_flag:bool = True):
-  data_train, data_test= read_datas(data_path)
+def get_train_and_test_data_with_separate_day(data_path:str, amount_of_days:int = 3, wind_border:int = 8, convert_str_variable_flag:bool = True, remove_nulls:int = 1):
+  data_train, data_test= read_datas(data_path, remove_nulls)
 
   data_train = pivot_data(data_train)
   data_train_agg = aggregate_by_day(data_train)
