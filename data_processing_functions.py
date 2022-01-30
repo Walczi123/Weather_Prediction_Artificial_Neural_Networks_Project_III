@@ -233,6 +233,36 @@ def get_train_and_test_data(data_path:str, amount_of_days:int = 3, wind_border:i
   
   return ((x_data_train, y_data_wind_train, y_data_temperature_train), (x_data_test, y_data_wind_test, y_data_temperature_test))
 
+def aggregate_by_3days(data):
+  for column in DAY_COLUMNS[1:]:
+    data[column + "1"] = (data[column + "1"] + data[column + "2"] + data[column + "3"])/3
+    data = data.drop(columns=[column + "2", column+"3"])
+  data.drop(columns=[DAY_COLUMNS[0]+"2", DAY_COLUMNS[0]+"3"])
+  return data
+
+def get_train_and_test_data_by_3_days(data_path:str, amount_of_days:int = 3, wind_border:int = 8, convert_str_variable_flag:bool = True):
+  data_train_flattened = combine_days_series(data_train_agg, amount_of_days)
+  data_train_cat = categorize_wind_data(data_train_flattened, wind_border)
+  data_train_cat2 = aggregate_by_3days(data_train_cat)
+  x_data_train, y_data_wind_train, y_data_temperature_train = separate_x_and_y(data_train_cat2, wind_border)
+
+  data_test = pivot_data(data_test)
+  data_test_agg = aggregate_by_day(data_test)
+  data_test_flattened = combine_days_series(data_test_agg, amount_of_days)
+  data_test_cat = categorize_wind_data(data_test_flattened, wind_border)
+  data_test_cat2 = aggregate_by_3days(data_test_cat)
+  x_data_test, y_data_wind_test, y_data_temperature_test = separate_x_and_y(data_test_cat2, wind_border)
+  
+  if convert_str_variable_flag:
+    print('convert_str_variable_flag')
+    print(amount_of_days)
+    x_data_train, columns, dicts = convert_str_variable(x_data_train, amount_of_days)
+    print('columns', columns)
+    print('dicts', dicts)
+    x_data_test = convert_str_variable(x_data_test, amount_of_days, columns=columns, dicts=dicts)[0]
+  
+  return ((x_data_train, y_data_wind_train, y_data_temperature_train), (x_data_test, y_data_wind_test, y_data_temperature_test))
+
 def season(date):
     md = date.month * 100 + date.day
     if ((md > 320) and (md < 622)):
@@ -335,6 +365,7 @@ def get_train_and_test_data_with_separate_day(data_path:str, amount_of_days:int 
 
   data_train = pivot_data(data_train)
   data_train_agg = aggregate_by_day(data_train)
+
   data_train_flattened = combine_days_series_separate_day(data_train_agg, amount_of_days)
   data_train_cat = categorize_wind_data_with_separate_day(data_train_flattened, wind_border)
   x_data_train, y_data_wind_train1, y_data_temperature_train1, y_data_wind_train2, y_data_temperature_train2 = separate_x_and_y_with_separate_day(data_train_cat, wind_border)
