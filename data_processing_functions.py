@@ -241,6 +241,9 @@ def aggregate_by_3days(data):
   return data
 
 def get_train_and_test_data_by_3_days(data_path:str, amount_of_days:int = 3, wind_border:int = 8, convert_str_variable_flag:bool = True):
+  data_train, data_test= read_datas(data_path)
+  data_train = pivot_data(data_train)
+  data_train_agg = aggregate_by_day(data_train)
   data_train_flattened = combine_days_series(data_train_agg, amount_of_days)
   data_train_cat = categorize_wind_data(data_train_flattened, wind_border)
   data_train_cat2 = aggregate_by_3days(data_train_cat)
