@@ -228,11 +228,7 @@ def get_train_and_test_data(data_path:str, amount_of_days:int = 3, wind_border:i
   x_data_test, y_data_wind_test, y_data_temperature_test = separate_x_and_y(data_test_cat, wind_border)
   
   if convert_str_variable_flag:
-    print('convert_str_variable_flag')
-    print(amount_of_days)
     x_data_train, columns, dicts = convert_str_variable(x_data_train, amount_of_days)
-    print('columns', columns)
-    print('dicts', dicts)
     x_data_test = convert_str_variable(x_data_test, amount_of_days, columns=columns, dicts=dicts)[0]
   
   return ((x_data_train, y_data_wind_train, y_data_temperature_train), (x_data_test, y_data_wind_test, y_data_temperature_test))
@@ -245,10 +241,6 @@ def aggregate_by_3days(data):
   return data
 
 def get_train_and_test_data_by_3_days(data_path:str, amount_of_days:int = 3, wind_border:int = 8, convert_str_variable_flag:bool = True):
-  data_train, data_test= read_datas(data_path)
-
-  data_train = pivot_data(data_train)
-  data_train_agg = aggregate_by_day(data_train)
   data_train_flattened = combine_days_series(data_train_agg, amount_of_days)
   data_train_cat = categorize_wind_data(data_train_flattened, wind_border)
   data_train_cat2 = aggregate_by_3days(data_train_cat)
@@ -271,3 +263,121 @@ def get_train_and_test_data_by_3_days(data_path:str, amount_of_days:int = 3, win
   
   return ((x_data_train, y_data_wind_train, y_data_temperature_train), (x_data_test, y_data_wind_test, y_data_temperature_test))
 
+def season(date):
+    md = date.month * 100 + date.day
+    if ((md > 320) and (md < 622)):
+        s = 0 #spring
+    elif ((md > 621) and (md < 923)):
+        s = 1 #summer
+    elif ((md > 922) and (md < 1223)):
+        s = 2 #fall
+    else:
+        s = 3 #winter
+    return s
+
+def aggregate_by_season(data):
+  agregated_by_season = dict()
+  data["season"] = data.apply(lambda row: season(pd.to_datetime(row['date'])), axis=1)
+  for i in range(4):
+    agregated_by_season[i] = data[data["season"] == i]
+  return agregated_by_season
+
+def get_train_and_test_data_by_season(data_path:str, amount_of_days:int = 3, wind_border:int = 8, convert_str_variable_flag:bool = True):
+  data_train, data_test= read_datas(data_path)
+  data_train = pivot_data(data_train)
+  data_test = pivot_data(data_test)
+  agregated_by_season_train = aggregate_by_season(data_train)
+  agregated_by_season_test = aggregate_by_season(data_test)
+  data_by_seasons = dict()
+  for i in range(4):
+    data_train = agregated_by_season_train[i]
+    data_train_agg = aggregate_by_day(data_train)
+    data_train_flattened = combine_days_series(data_train_agg, amount_of_days)
+    data_train_cat = categorize_wind_data(data_train_flattened, wind_border)
+    x_data_train, y_data_wind_train, y_data_temperature_train = separate_x_and_y(data_train_cat, wind_border)
+
+    data_test = agregated_by_season_test[i]
+    data_test_agg = aggregate_by_day(data_test)
+    data_test_flattened = combine_days_series(data_test_agg, amount_of_days)
+    data_test_cat = categorize_wind_data(data_test_flattened, wind_border)
+    x_data_test, y_data_wind_test, y_data_temperature_test = separate_x_and_y(data_test_cat, wind_border)
+    
+    if convert_str_variable_flag:
+      x_data_train, columns, dicts = convert_str_variable(x_data_train, amount_of_days)
+      x_data_test = convert_str_variable(x_data_test, amount_of_days, columns=columns, dicts=dicts)[0]
+    
+    data_by_seasons[i] = ((x_data_train, y_data_wind_train, y_data_temperature_train), (x_data_test, y_data_wind_test, y_data_temperature_test))
+  
+  return data_by_seasons
+
+def combine_days_series_separate_day(data:pd.DataFrame, amount_of_days:int = 3):
+  data.date = pd.to_datetime(data.date, yearfirst=True)
+  data["date_diff"] = data.date.diff()
+
+  dfs = generate_dfs(data, amount_of_days)
+
+  y_temp1 = data[["temperature","date", "city"]]
+  y_temp1 = y_temp1[3:len(dfs[0])].reset_index(drop=True)
+
+  y_wind1 = data[["wind_speed_max","date","city"]]
+  y_wind1 = y_wind1[3:len(dfs[0])].reset_index(drop=True)
+
+  y_temp2 = data[["temperature","date", "city"]]
+  y_temp2 = y_temp2[4:len(dfs[0])].reset_index(drop=True)
+
+  y_wind2 = data[["wind_speed_max","date","city"]]
+  y_wind2 = y_wind2[4:len(dfs[0])].reset_index(drop=True)
+
+  dfs.extend([y_temp1, y_wind1, y_temp2, y_wind2])
+  data_flattened = pd.concat(dfs, axis=1)
+
+  data_flattened["to_del"] = data_flattened.apply(lambda row: len(set(row["city"])) != 1 or check_date(row["date_diff"], row["date"]), axis=1)
+  data_flattened = data_flattened[~data_flattened["to_del"]].reset_index(drop=True)
+
+  cities = data_flattened['city'].iloc[:, 0]
+  data_flattened = data_flattened.drop(['city', 'date', 'date_diff', 'to_del'], axis=1)
+
+  data_flattened = pd.concat([cities, data_flattened], axis=1)
+  data_flattened.columns = ['city'] + generate_days_columns_names(amount_of_days) + ['y_temperature1', 'y_wind_speed1', 'y_temperature2', 'y_wind_speed2']                        
+  return data_flattened  
+
+def categorize_wind_data_with_separate_day(data:pd.DataFrame, border:int = 8):
+  bins = [-np.inf, border, np.inf]
+  names = [f'below{border}', f'above{border}']
+  data['y_wind_speed1'] = pd.cut(data['y_wind_speed1'], bins, labels=names, right=False)
+  data = pd.get_dummies(data=data, columns=["y_wind_speed1"],drop_first=True)
+  data['y_wind_speed2'] = pd.cut(data['y_wind_speed2'], bins, labels=names, right=False)
+  data = pd.get_dummies(data=data, columns=["y_wind_speed2"],drop_first=True)
+  return data
+
+def separate_x_and_y_with_separate_day(data:pd.DataFrame, border:int = 8):
+  x = data.drop(['y_temperature2', f'y_wind_speed2_above{border}'],axis=1)
+  y_wind2 = data[f'y_wind_speed2_above{border}']
+  y_temperature2 = data['y_temperature2']
+
+  x = x.drop(['y_temperature1', f'y_wind_speed1_above{border}'],axis=1)
+  y_wind1 = data[f'y_wind_speed1_above{border}']
+  y_temperature1 = data['y_temperature1']
+  return x, y_wind1, y_temperature1, y_wind2, y_temperature2
+
+def get_train_and_test_data_with_separate_day(data_path:str, amount_of_days:int = 3, wind_border:int = 8, convert_str_variable_flag:bool = True):
+  data_train, data_test= read_datas(data_path)
+
+  data_train = pivot_data(data_train)
+  data_train_agg = aggregate_by_day(data_train)
+
+  data_train_flattened = combine_days_series_separate_day(data_train_agg, amount_of_days)
+  data_train_cat = categorize_wind_data_with_separate_day(data_train_flattened, wind_border)
+  x_data_train, y_data_wind_train1, y_data_temperature_train1, y_data_wind_train2, y_data_temperature_train2 = separate_x_and_y_with_separate_day(data_train_cat, wind_border)
+
+  data_test = pivot_data(data_test)
+  data_test_agg = aggregate_by_day(data_test)
+  data_test_flattened = combine_days_series_separate_day(data_test_agg, amount_of_days)
+  data_test_cat = categorize_wind_data_with_separate_day(data_test_flattened, wind_border)
+  x_data_test, y_data_wind_test1, y_data_temperature_test1, y_data_wind_test2, y_data_temperature_test2 = separate_x_and_y_with_separate_day(data_test_cat, wind_border)
+  
+  if convert_str_variable_flag:
+    x_data_train, columns, dicts = convert_str_variable(x_data_train, amount_of_days)
+    x_data_test = convert_str_variable(x_data_test, amount_of_days, columns=columns, dicts=dicts)[0]
+  
+  return ((x_data_train, y_data_wind_train1, y_data_temperature_train1, y_data_wind_train2, y_data_temperature_train2), (x_data_test, y_data_wind_test1, y_data_temperature_test1, y_data_wind_test2, y_data_temperature_test2))
