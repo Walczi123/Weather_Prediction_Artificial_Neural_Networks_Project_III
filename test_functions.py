@@ -117,3 +117,9 @@ def run_regression(x_train, y_train, x_test, y_test ,hidden_layer_sizes = (100,2
         ker += predict_keras_regressor(model_ker, x_test, y_test)
     print("SKLEARN: " + str((sk / 10)))
     print("KERAS: " + str((ker / 10)))
+
+def mean_normalization(df_data):
+    return (df_data-df_data.mean())/df_data.std()
+
+def minmax_normalization(df_data):
+    return (df_data-df_data.min())/(df_data.max()-df_data.min())
