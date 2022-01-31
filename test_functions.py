@@ -91,7 +91,7 @@ def predict_sklearn_regressor(model, x_test, y_test):
     MAE = round(np.mean(err),2)
     RMSE = round(np.sqrt(((err)**2).mean()),2)
     print("Regression errors - MAE:", MAE, "RMSE:", RMSE)
-    return MAE
+    return (MAE, np.count_nonzero(err < 2) / len(err))
 
 def create_keras_regressor(x_train, y_train, hidden_layer_sizes=(32,16), epochs=15):
     model = Sequential()
@@ -104,22 +104,28 @@ def create_keras_regressor(x_train, y_train, hidden_layer_sizes=(32,16), epochs=
 
 def predict_keras_regressor(model, x_test, y_test):
     yhat = model.predict(x_test)
-    err = abs(yhat - y_test)
+    err = abs(yhat.reshape(1,-1)[0] - y_test.to_numpy())
     print("Error was smaller than 2 degree in :", np.count_nonzero(err < 2) / len(err))
     error = mean_absolute_error(y_test, yhat)
     print('MAE: %.3f' % error)
-    return error
+    return (error, np.count_nonzero(err < 2) / len(err))
 
 def run_regression(x_train, y_train, x_test, y_test ,hidden_layer_sizes = (100,20)):
     model_sk = create_sklearn_regressor(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
     model_ker = create_keras_regressor(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
     sk = 0
     ker = 0
+    sk_p = 0
+    ker_p = 0
     for i in range(10):
-        sk += predict_sklearn_regressor(model_sk, x_test, y_test)
-        ker += predict_keras_regressor(model_ker, x_test, y_test)
-    print("SKLEARN: " + str((sk / 10)))
-    print("KERAS: " + str((ker / 10)))
+        s1, s2 = predict_sklearn_regressor(model_sk, x_test, y_test)
+        sk += s1
+        sk_p += s2
+        k1, k2 = predict_keras_regressor(model_ker, x_test, y_test)
+        ker += k1
+        ker_p += k2
+    print(f"SKLEARN: {str((sk / 10))} and error was smaller than 2 degree in {sk_p/10}")
+    print(f"KERAS: {str((ker / 10))} and error was smaller than 2 degree in {ker_p/10}")
 
 def mean_normalization(df_data):
     return (df_data-df_data.mean())/df_data.std()
