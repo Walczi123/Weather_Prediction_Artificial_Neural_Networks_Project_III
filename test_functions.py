@@ -140,29 +140,29 @@ def classification_study_issue_5(x_train, y_train, y_train2, x_test, y_test2 ,hi
     predicted1 = model_sk.predict(x_train)
     predicted2 = model_ker.predict(x_train)
     model_sk2 = create_sklearn_classifier(predicted1.reshape(-1, 1), y_train2, hidden_layer_sizes=hidden_layer_sizes)
-    model_ker2 = create_keras_classifier(predicted2.reshape(-1, 1), y_train2, hidden_layer_sizes=hidden_layer_sizes)
+    model_ker2 = create_keras_classifier(np.argmax(predicted2, axis=-1).astype('int'), y_train2, hidden_layer_sizes=hidden_layer_sizes)
     sk = 0
     ker = 0
     for i in range(10):
         predicted_sk1 = model_sk.predict(x_test)
         predicted_ker1 = model_ker.predict(x_test)
-        sk += predict_sklearn_classifier(model_sk2, predicted_sk1, y_test2)
-        ker += predict_keras_classifier(model_ker2, predicted_ker1, y_test2)
+        sk += predict_sklearn_classifier(model_sk2, predicted_sk1.reshape(-1, 1), y_test2)
+        ker += predict_keras_classifier(model_ker2, np.argmax(predicted_ker1, axis=-1).astype('int'), y_test2)
     print("SKLEARN: " + str((sk / 10)))
     print("KERAS: " + str((ker / 10)))
 
 def classification_study_issue_5_real(x_train, y_train, y_train2, x_test, y_test2 ,hidden_layer_sizes = (100,20)):
     model_sk = create_sklearn_classifier(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
     model_ker = create_keras_classifier(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
-    model_sk2 = create_sklearn_classifier(y_train, y_train2, hidden_layer_sizes=hidden_layer_sizes)
+    model_sk2 = create_sklearn_classifier(y_train.to_numpy().reshape(-1,1), y_train2, hidden_layer_sizes=hidden_layer_sizes)
     model_ker2 = create_keras_classifier(y_train, y_train2, hidden_layer_sizes=hidden_layer_sizes)
     sk = 0
     ker = 0
     for i in range(10):
         predicted_sk1 = model_sk.predict(x_test)
         predicted_ker1 = model_ker.predict(x_test)
-        sk += predict_sklearn_classifier(model_sk2, predicted_sk1, y_test2)
-        ker += predict_keras_classifier(model_ker2, predicted_ker1, y_test2)
+        sk += predict_sklearn_classifier(model_sk2, predicted_sk1.reshape(-1,1), y_test2)
+        ker += predict_keras_classifier(model_ker2, np.argmax(predicted_ker1, axis=-1).astype('int'), y_test2)
     print("SKLEARN: " + str((sk / 10)))
     print("KERAS: " + str((ker / 10)))
 
@@ -176,25 +176,37 @@ def regression_study_issue_5(x_train, y_train, y_train2, x_test, y_test2 ,hidden
     model_ker2 = create_keras_regressor(predicted2.reshape(-1, 1), y_train2, hidden_layer_sizes=hidden_layer_sizes)
     sk = 0
     ker = 0
+    sk_p = 0
+    ker_p = 0
     for i in range(10):
         predicted_sk1 = model_sk.predict(x_test)
         predicted_ker1 = model_ker.predict(x_test)
-        sk += predict_sklearn_regressor(model_sk2, predicted_sk1, y_test2)
-        ker += predict_keras_regressor(model_ker2, predicted_ker1, y_test2)
-    print("SKLEARN: " + str((sk / 10)))
-    print("KERAS: " + str((ker / 10)))
+        s1, s2 = predict_sklearn_regressor(model_sk2, predicted_sk1.reshape(-1, 1), y_test2)
+        k1, k2 = predict_keras_regressor(model_ker2, predicted_ker1, y_test2)
+        sk += s1
+        sk_p += s2
+        ker += k1
+        ker_p += k2
+    print(f"SKLEARN: {str((sk / 10))} and error was smaller than 2 degree in {sk_p/10}")
+    print(f"KERAS: {str((ker / 10))} and error was smaller than 2 degree in {ker_p/10}")
 
 def regression_study_issue_5_real(x_train, y_train, y_train2, x_test, y_test2 ,hidden_layer_sizes = (100,20)):
     model_sk = create_sklearn_regressor(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
     model_ker = create_keras_regressor(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
-    model_sk2 = create_sklearn_regressor(y_train, y_train2, hidden_layer_sizes=hidden_layer_sizes)
+    model_sk2 = create_sklearn_regressor(y_train.to_numpy().reshape(-1,1), y_train2, hidden_layer_sizes=hidden_layer_sizes)
     model_ker2 = create_keras_regressor(y_train, y_train2, hidden_layer_sizes=hidden_layer_sizes)
     sk = 0
     ker = 0
+    sk_p = 0
+    ker_p = 0
     for i in range(10):
         predicted_sk1 = model_sk.predict(x_test)
         predicted_ker1 = model_ker.predict(x_test)
-        sk += predict_sklearn_regressor(model_sk2, predicted_sk1, y_test2)
-        ker += predict_keras_regressor(model_ker2, predicted_ker1, y_test2)
-    print("SKLEARN: " + str((sk / 10)))
-    print("KERAS: " + str((ker / 10)))
+        s1, s2 = predict_sklearn_regressor(model_sk2, predicted_sk1.reshape(-1, 1), y_test2)
+        k1, k2 = predict_keras_regressor(model_ker2, predicted_ker1, y_test2)
+        sk += s1
+        sk_p += s2
+        ker += k1
+        ker_p += k2
+    print(f"SKLEARN: {str((sk / 10))} and error was smaller than 2 degree in {sk_p/10}")
+    print(f"KERAS: {str((ker / 10))} and error was smaller than 2 degree in {ker_p/10}")
