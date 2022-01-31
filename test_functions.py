@@ -51,8 +51,8 @@ def predict_keras_classifier(model, x_test, y_test):
     return acc
 
 def run_classification(x_train, y_train, x_test, y_test ,hidden_layer_sizes = (100,20)):
-    model_sk = create_sklearn_classifier(x_train, y_train)
-    model_ker = create_keras_classifier(x_train, y_train)
+    model_sk = create_sklearn_classifier(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
+    model_ker = create_keras_classifier(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
     sk = 0
     ker = 0
     for i in range(10):
@@ -61,13 +61,13 @@ def run_classification(x_train, y_train, x_test, y_test ,hidden_layer_sizes = (1
     print("SKLEARN: " + str((sk / 10)))
     print("KERAS: " + str((ker / 10)))
 
-    def regression_test(x_train, y_train, x_test, y_test, hidden_layer_sizes = (100,20), solver='lbfgs'):
-        mlpregr = MLPRegressor(solver=solver, alpha=1e-5, hidden_layer_sizes=hidden_layer_sizes, random_state=1)
-        mlpregr.fit(x_train, y_train)
-        err = abs(mlpregr.predict(x_test) - y_test)
-        MAE = round(np.mean(err),2)
-        RMSE = round(np.sqrt(((err)**2).mean()),2)
-        print("Regression errors - MAE:", MAE, "RMSE:", RMSE)
+def regression_test(x_train, y_train, x_test, y_test, hidden_layer_sizes = (100,20), solver='lbfgs'):
+    mlpregr = MLPRegressor(solver=solver, alpha=1e-5, hidden_layer_sizes=hidden_layer_sizes, random_state=1)
+    mlpregr.fit(x_train, y_train)
+    err = abs(mlpregr.predict(x_test) - y_test)
+    MAE = round(np.mean(err),2)
+    RMSE = round(np.sqrt(((err)**2).mean()),2)
+    print("Regression errors - MAE:", MAE, "RMSE:", RMSE)
 
 def regression_test_keras(x_train, y_train, x_test, y_test, hidden_layer_sizes=(32,16), epochs=15):
     model = Sequential()
@@ -87,6 +87,7 @@ def create_sklearn_regressor(x_train, y_train, hidden_layer_sizes=(100,20), rand
 
 def predict_sklearn_regressor(model, x_test, y_test):
     err = abs(model.predict(x_test) - y_test)
+    print("Error was smaller than 2 degree in :", np.count_nonzero(err < 2) / len(err))
     MAE = round(np.mean(err),2)
     RMSE = round(np.sqrt(((err)**2).mean()),2)
     print("Regression errors - MAE:", MAE, "RMSE:", RMSE)
@@ -103,13 +104,15 @@ def create_keras_regressor(x_train, y_train, hidden_layer_sizes=(32,16), epochs=
 
 def predict_keras_regressor(model, x_test, y_test):
     yhat = model.predict(x_test)
+    err = abs(yhat - y_test)
+    print("Error was smaller than 2 degree in :", np.count_nonzero(err < 2) / len(err))
     error = mean_absolute_error(y_test, yhat)
     print('MAE: %.3f' % error)
     return error
 
 def run_regression(x_train, y_train, x_test, y_test ,hidden_layer_sizes = (100,20)):
-    model_sk = create_sklearn_regressor(x_train, y_train)
-    model_ker = create_keras_regressor(x_train, y_train)
+    model_sk = create_sklearn_regressor(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
+    model_ker = create_keras_regressor(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
     sk = 0
     ker = 0
     for i in range(10):
@@ -123,3 +126,69 @@ def mean_normalization(df_data):
 
 def minmax_normalization(df_data):
     return (df_data-df_data.min())/(df_data.max()-df_data.min())
+
+
+def classification_study_issue_5(x_train, y_train, y_train2, x_test, y_test2 ,hidden_layer_sizes = (100,20)):
+    model_sk = create_sklearn_classifier(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
+    model_ker = create_keras_classifier(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
+    predicted1 = model_sk.predict(x_train)
+    predicted2 = model_ker.predict(x_train)
+    model_sk2 = create_sklearn_classifier(predicted1.reshape(-1, 1), y_train2, hidden_layer_sizes=hidden_layer_sizes)
+    model_ker2 = create_keras_classifier(predicted2.reshape(-1, 1), y_train2, hidden_layer_sizes=hidden_layer_sizes)
+    sk = 0
+    ker = 0
+    for i in range(10):
+        predicted_sk1 = model_sk.predict(x_test)
+        predicted_ker1 = model_ker.predict(x_test)
+        sk += predict_sklearn_classifier(model_sk2, predicted_sk1, y_test2)
+        ker += predict_keras_classifier(model_ker2, predicted_ker1, y_test2)
+    print("SKLEARN: " + str((sk / 10)))
+    print("KERAS: " + str((ker / 10)))
+
+def classification_study_issue_5_real(x_train, y_train, y_train2, x_test, y_test2 ,hidden_layer_sizes = (100,20)):
+    model_sk = create_sklearn_classifier(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
+    model_ker = create_keras_classifier(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
+    model_sk2 = create_sklearn_classifier(y_train, y_train2, hidden_layer_sizes=hidden_layer_sizes)
+    model_ker2 = create_keras_classifier(y_train, y_train2, hidden_layer_sizes=hidden_layer_sizes)
+    sk = 0
+    ker = 0
+    for i in range(10):
+        predicted_sk1 = model_sk.predict(x_test)
+        predicted_ker1 = model_ker.predict(x_test)
+        sk += predict_sklearn_classifier(model_sk2, predicted_sk1, y_test2)
+        ker += predict_keras_classifier(model_ker2, predicted_ker1, y_test2)
+    print("SKLEARN: " + str((sk / 10)))
+    print("KERAS: " + str((ker / 10)))
+
+
+def regression_study_issue_5(x_train, y_train, y_train2, x_test, y_test2 ,hidden_layer_sizes = (100,20)):
+    model_sk = create_sklearn_regressor(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
+    model_ker = create_keras_regressor(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
+    predicted1 = model_sk.predict(x_train)
+    predicted2 = model_ker.predict(x_train)
+    model_sk2 = create_sklearn_regressor(predicted1.reshape(-1, 1), y_train2, hidden_layer_sizes=hidden_layer_sizes)
+    model_ker2 = create_keras_regressor(predicted2.reshape(-1, 1), y_train2, hidden_layer_sizes=hidden_layer_sizes)
+    sk = 0
+    ker = 0
+    for i in range(10):
+        predicted_sk1 = model_sk.predict(x_test)
+        predicted_ker1 = model_ker.predict(x_test)
+        sk += predict_sklearn_regressor(model_sk2, predicted_sk1, y_test2)
+        ker += predict_keras_regressor(model_ker2, predicted_ker1, y_test2)
+    print("SKLEARN: " + str((sk / 10)))
+    print("KERAS: " + str((ker / 10)))
+
+def regression_study_issue_5_real(x_train, y_train, y_train2, x_test, y_test2 ,hidden_layer_sizes = (100,20)):
+    model_sk = create_sklearn_regressor(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
+    model_ker = create_keras_regressor(x_train, y_train, hidden_layer_sizes=hidden_layer_sizes)
+    model_sk2 = create_sklearn_regressor(y_train, y_train2, hidden_layer_sizes=hidden_layer_sizes)
+    model_ker2 = create_keras_regressor(y_train, y_train2, hidden_layer_sizes=hidden_layer_sizes)
+    sk = 0
+    ker = 0
+    for i in range(10):
+        predicted_sk1 = model_sk.predict(x_test)
+        predicted_ker1 = model_ker.predict(x_test)
+        sk += predict_sklearn_regressor(model_sk2, predicted_sk1, y_test2)
+        ker += predict_keras_regressor(model_ker2, predicted_ker1, y_test2)
+    print("SKLEARN: " + str((sk / 10)))
+    print("KERAS: " + str((ker / 10)))
