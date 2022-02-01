@@ -127,7 +127,7 @@ def predict_keras_regressor(model, x_test, y_test, denom=None):
         err = abs(denom(model.predict(x_test).reshape(1,-1)[0]) - denom(y_test))
 
     print("Error was smaller than 2 degree in :", np.count_nonzero(err < 2) / len(err))
-    error = mean_absolute_error(y_test, yhat)
+    error = round(np.mean(err),2)
     print('MAE: %.3f' % error)
     return (error, np.count_nonzero(err < 2) / len(err))
 
